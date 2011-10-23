@@ -92,19 +92,42 @@ public class Client extends Thread {
 					if(input.length < 3)
 						System.out.println("Usage: send <nick-name> <message>\n>>> ");
 					else {
+						boolean inactiveClient = false;
 						try {
 							/* Find client in table */
 							InetAddress address = null;
 							int port = 0;
+							String name = null;
 							ClientObject[] clients = table.getArray();
 							for(ClientObject c : clients)
-								if(c.getName().equals(input[1].trim())) {
+								if(c.getName().equals(input[1])) {
+									name = c.getName();
 									address = InetAddress.getByName(c.getIP());
 									port = c.getPort();
+									if(!c.getActive())
+										inactiveClient = true;
 									break;
 								}
 							if(address == null)
 								System.out.printf("User %s is not a registered user\n", input[1]);
+							else if(inactiveClient) {
+								/* Build message for server */
+								StringBuilder sb = new StringBuilder();
+								sb.append("s ");	// Indicates to save message
+								sb.append(name);
+								sb.append(" ");
+								sb.append(address.getAddress());
+								sb.append(" ");
+								sb.append(port);
+								String message = sb.toString();
+								byte[] buffer = message.getBytes();
+								
+								DatagramSocket socket = new DatagramSocket();
+								address = InetAddress.getByName(serverIP);
+								DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, serverPort);
+								socket.send(packet);
+								socket.close();
+							}
 							else {
 								DatagramSocket socket = new DatagramSocket();
 								
@@ -182,26 +205,6 @@ public class Client extends Thread {
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
-			/*
-			try {
-				MulticastSocket msocket = new MulticastSocket(serverPort+1); //TODO dynamic port
-				InetAddress group = InetAddress.getByName("localhost"); //TODO dynamic
-				msocket.joinGroup(group);
-				
-				while(true) {
-					byte[] buffer = new byte[256];
-				    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-				    msocket.receive(packet);
-				    
-				    System.out.println("Got the broadcast!");
-
-				    String received = new String(packet.getData());
-				    System.out.println("Broadcast: " + received);
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-			*/
 		}
 	}
 	

@@ -6,12 +6,12 @@ public class Server extends Thread {
 	
 	//Variables
 	protected static DatagramSocket socket = null;
-//	protected static MulticastSocket multi = null;
 	protected static DatagramSocket bSocket = null;
 	protected static int serverPort;
 	protected static int multiPort;
 	protected static Table table = new Table();
 	private static boolean broadcastReady = false;
+	private static ArrayList<SavedMessage> messages = new ArrayList<SavedMessage>();
 	
 	public Server() throws IOException {
 //		this("ServerSide");
@@ -72,6 +72,7 @@ public class Server extends Thread {
 						// Offline message
 					}
 					else if(incoming[0].equals("s")) {
+						System.out.println("SAVE ME!");
 						// Save message request
 					}
 					else {
@@ -125,7 +126,7 @@ public class Server extends Thread {
 						broadcastReady = false;
 					}
 					try {
-						sleep(500);
+						sleep(50);	// Check to broadcast every 50ms
 					} catch (InterruptedException e) {}
 				}
 			} catch (IOException e) {
