@@ -71,12 +71,30 @@ public class Server extends Thread {
 					else if(incoming[0].equals("rereg")) {
 						System.out.println("rereg in the house");
 						ArrayList<ClientObject> clients = table.getClients();
+						ArrayList<String> saved = new ArrayList<String>();
+						ArrayList<SavedMessage> newList = new ArrayList<SavedMessage>();
 						for(int i=0; i<clients.size(); i++) {
 							if(clients.get(i).getName().equals(incoming[1])) {
 								clients.get(i).setActive(true);
+								
+								//TODO here we must check for saved messages in global list
+								//TODO add timestamp
+								
+								for(int j=0; j< messages.size(); j++) {
+									if(messages.get(j).getName().equals(incoming[1]))
+										saved.add(messages.get(j).getMessage());
+									else
+										newList.add(messages.get(j));
+								}
+								
 								break;
 							}
 						}
+						if(saved.size() > 0) {
+							//TODO build new list and send it from here
+						}
+						messages = newList;
+						
 						table.replaceClients(clients);
 						broadcastReady = true;
 					}
