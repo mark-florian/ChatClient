@@ -1,6 +1,7 @@
 import java.util.*;
 import java.io.*;
 import java.net.*;
+import java.text.*;
 
 public class Client extends Thread {
 	
@@ -120,6 +121,10 @@ public class Client extends Thread {
 								sb.append(" ");
 								sb.append(port);
 								sb.append(" ");
+								sb.append(clientName);
+								sb.append(" ");
+								sb.append(getDateTime());
+								sb.append(" ");
 								for(int i=2; i<input.length; i++)
 									sb.append(input[i] + " ");
 								String message = sb.toString();
@@ -190,7 +195,6 @@ public class Client extends Thread {
 							} catch (IOException e) {
 								e.printStackTrace();
 							}
-							
 						}
 					}
 				}
@@ -261,5 +265,11 @@ public class Client extends Thread {
 		
 		return al.toArray(new String[al.size()]);
 	}
+	
+	private String getDateTime() {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
+        Date date = new Date();
+        return dateFormat.format(date);
+    }
 
 }

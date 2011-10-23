@@ -73,16 +73,21 @@ public class Server extends Thread {
 						ArrayList<ClientObject> clients = table.getClients();
 						ArrayList<String> saved = new ArrayList<String>();
 						ArrayList<SavedMessage> newList = new ArrayList<SavedMessage>();
+						String ip = null;
+						int port = 0;
+						
 						for(int i=0; i<clients.size(); i++) {
 							if(clients.get(i).getName().equals(incoming[1])) {
 								clients.get(i).setActive(true);
+								ip = clients.get(i).getIP();
+								port = clients.get(i).getPort();
 								
 								//TODO here we must check for saved messages in global list
 								//TODO add timestamp
 								
 								for(int j=0; j< messages.size(); j++) {
 									if(messages.get(j).getName().equals(incoming[1]))
-										saved.add(messages.get(j).getMessage());
+										saved.add(messages.get(j).getFrom() + ": " + messages.get(j).getMessage());
 									else
 										newList.add(messages.get(j));
 								}
@@ -91,8 +96,25 @@ public class Server extends Thread {
 							}
 						}
 						if(saved.size() > 0) {
+							StringBuilder sb = new StringBuilder();
+							for(String s : saved)
+								sb.append(s + "$");
+							String message = sb.toString();
+							byte[] buf = message.getBytes();
+							
+							try {
+								DatagramSocket socket = new DatagramSocket();
+								InetAddress address = InetAddress.getByName(ip);
+								DatagramPacket savedPacket = new DatagramPacket(buf, buf.length, address, port);
+								socket.send(savedPacket);
+								socket.close();
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
 							//TODO build new list and send it from here
+							System.out.println(message);
 						}
+						
 						messages = newList;
 						
 						table.replaceClients(clients);
@@ -106,7 +128,7 @@ public class Server extends Thread {
 						
 						/* Build message */
 						StringBuilder sb = new StringBuilder();
-						for(int i=4; i<incoming.length; i++)
+						for(int i=6; i<incoming.length; i++)
 							sb.append(incoming[i] + " ");
 						String m = sb.toString();
 						
@@ -115,12 +137,13 @@ public class Server extends Thread {
 						System.out.printf("incoming2:<%s>\n", incoming[2]);
 						System.out.printf("incoming3:<%s>\n", incoming[3]);
 						System.out.printf("incoming4:<%s>\n", incoming[4]);
+						System.out.printf("incoming5:<%s>\n", incoming[5]);
 						
-						messages.add(new SavedMessage(incoming[1], incoming[2], Integer.parseInt(incoming[3]), m));
+						messages.add(new SavedMessage(incoming[1], incoming[2], Integer.parseInt(incoming[3]), m, incoming[4], incoming[5]));
 						
 						// Testing
 						for(SavedMessage s : messages)
-							System.out.printf("%s\t%s\t%d\t%s\n", s.getName(), s.getIP(), s.getPort(), s.getMessage());
+							System.out.printf("%s\t%s\t%d\t%s\t%s\t%s\n", s.getName(), s.getIP(), s.getPort(), s.getMessage(), s.getFrom(), s.getTime());
 						// Save message request
 					}
 					else {
