@@ -73,6 +73,24 @@ public class Server extends Thread {
 					}
 					else if(incoming[0].equals("s")) {
 						System.out.println("SAVE ME!");
+						
+						/* Build message */
+						StringBuilder sb = new StringBuilder();
+						for(int i=4; i<incoming.length; i++)
+							sb.append(incoming[i] + " ");
+						String m = sb.toString();
+						
+						System.out.printf("incoming0:<%s>\n", incoming[0]);
+						System.out.printf("incoming1:<%s>\n", incoming[1]);
+						System.out.printf("incoming2:<%s>\n", incoming[2]);
+						System.out.printf("incoming3:<%s>\n", incoming[3]);
+						System.out.printf("incoming4:<%s>\n", incoming[4]);
+						
+						messages.add(new SavedMessage(incoming[1], incoming[2], Integer.parseInt(incoming[3]), m));
+						
+						// Testing
+						for(SavedMessage s : messages)
+							System.out.printf("%s\t%s\t%d\t%s\n", s.getName(), s.getIP(), s.getPort(), s.getMessage());
 						// Save message request
 					}
 					else {

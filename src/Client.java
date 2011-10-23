@@ -116,9 +116,12 @@ public class Client extends Thread {
 								sb.append("s ");	// Indicates to save message
 								sb.append(name);
 								sb.append(" ");
-								sb.append(address.getAddress());
+								sb.append(address.getHostAddress());
 								sb.append(" ");
 								sb.append(port);
+								sb.append(" ");
+								for(int i=2; i<input.length; i++)
+									sb.append(input[i] + " ");
 								String message = sb.toString();
 								byte[] buffer = message.getBytes();
 								
