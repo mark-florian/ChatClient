@@ -9,7 +9,7 @@ public class Client extends Thread {
 	private static String serverIP = null;
 	private static int serverPort;
 	protected static Table table = new Table();
-	
+	private static String clientName = null;
 	
 	public Client() throws IOException {
 	}
@@ -21,6 +21,7 @@ public class Client extends Thread {
 	public static void startClient(String name, String sIP, String sPort, String clientPort) throws IOException {
 		serverIP = sIP;
 		serverPort = Integer.parseInt(sPort);
+		clientName = name;
 		
 		DatagramSocket socket = new DatagramSocket();
 		InetAddress address = InetAddress.getByName(serverIP);
@@ -69,7 +70,6 @@ public class Client extends Thread {
 					
 					/* Once received */
 					String rec = new String(packet.getData(), 0, packet.getLength());
-					System.out.println();
 					System.out.println(rec);
 				}
 			} catch (IOException e) {
@@ -132,16 +132,18 @@ public class Client extends Thread {
 								socket.close();
 							}
 							else {
-								DatagramSocket socket = new DatagramSocket();
+								// Send to client
 								
 								/* Build message */
 								StringBuilder sb = new StringBuilder();
+								sb.append(clientName + ": ");
 								for(int i=2; i< input.length; i++)
 									sb.append(input[i] + " ");
 								String message = sb.toString();
 								byte[] buffer = message.getBytes();
 								
 								/* Send packet to user */
+								DatagramSocket socket = new DatagramSocket();
 								DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
 								socket.send(packet);
 								socket.close();
