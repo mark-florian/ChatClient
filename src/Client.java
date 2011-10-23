@@ -154,6 +154,44 @@ public class Client extends Thread {
 						}
 					}
 				}
+				else if(input[0].equals("reg")) {
+					if(input.length != 2)
+						System.out.println("Usage: reg <nickname>");
+					else {
+						// Make sure the user is already registered and inactive
+						boolean activateClient = false;
+						ClientObject[] clients = table.getArray();
+						String name = null;
+						for(ClientObject c : clients)
+							if(c.getName().equals(input[1])) {
+								if(c.getActive()) {
+									System.out.println("User is already registered and active");
+									break;
+								}
+								name = c.getName();
+								activateClient = true;
+							}
+						if(!activateClient) {
+							System.out.printf("User %s does not exist\n", input[1]);
+						}
+						else {
+							// Send request from here
+							String message = "rereg " + name;
+							byte[] buffer = message.getBytes();
+							
+							try {
+								DatagramSocket socket = new DatagramSocket();
+								InetAddress address = InetAddress.getByName(serverIP);
+								DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, serverPort);
+								socket.send(packet);
+								socket.close();
+							} catch (IOException e) {
+								e.printStackTrace();
+							}
+							
+						}
+					}
+				}
 				else if(input[0].equals("dereg")) {
 					// Send server dereg request
 					if(input.length != 2)

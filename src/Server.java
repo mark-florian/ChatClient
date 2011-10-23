@@ -68,6 +68,18 @@ public class Server extends Thread {
 						table.replaceClients(clients);
 						broadcastReady = true;
 					}
+					else if(incoming[0].equals("rereg")) {
+						System.out.println("rereg in the house");
+						ArrayList<ClientObject> clients = table.getClients();
+						for(int i=0; i<clients.size(); i++) {
+							if(clients.get(i).getName().equals(incoming[1])) {
+								clients.get(i).setActive(true);
+								break;
+							}
+						}
+						table.replaceClients(clients);
+						broadcastReady = true;
+					}
 					else if(incoming[0].equals("o")) {
 						// Offline message
 					}
