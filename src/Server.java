@@ -14,13 +14,10 @@ public class Server extends Thread {
 	private static ArrayList<SavedMessage> messages = new ArrayList<SavedMessage>();
 	
 	public Server() throws IOException {
-//		this("ServerSide");
 	}
 	
 	public Server(String s) throws IOException {
 		super(s);
-//		socket = new DatagramSocket(7777);
-//		multi = new MulticastSocket(serverPort+1);
 	}
 
 	public static void startServer(String port) throws IOException {
@@ -52,15 +49,15 @@ public class Server extends Thread {
 					if(incoming[0].equals("r")) {
 						table.addClient(new ClientObject(incoming[1], incoming[2], incoming[3], true)); // Register new client
 						broadcastReady = true;
-						System.out.println("bcast is TRUE!");
+//						System.out.println("bcast is TRUE!");
 					}
 					else if(incoming[0].equals("dereg")) {
-						System.out.println("dereg in the house");
+//						System.out.println("dereg in the house");
 						ArrayList<ClientObject> clients = table.getClients();
 						for(int i=0; i<clients.size(); i++) {
-							System.out.printf("incoming:<%s>list:<%s>", incoming[1], clients.get(i).getName());
+//							System.out.printf("incoming:<%s>list:<%s>", incoming[1], clients.get(i).getName());
 							if(clients.get(i).getName().equals(incoming[1])) {
-								System.out.println("condition satisfied");
+//								System.out.println("condition satisfied");
 								clients.get(i).setActive(false);
 								break;
 							}
@@ -87,7 +84,7 @@ public class Server extends Thread {
 								
 								for(int j=0; j< messages.size(); j++) {
 									if(messages.get(j).getName().equals(incoming[1]))
-										saved.add(messages.get(j).getFrom() + ": " + messages.get(j).getMessage());
+										saved.add(messages.get(j).getFrom() + ": <" + messages.get(j).getTime() + "> " + messages.get(j).getMessage());
 									else
 										newList.add(messages.get(j));
 								}
@@ -97,6 +94,7 @@ public class Server extends Thread {
 						}
 						if(saved.size() > 0) {
 							StringBuilder sb = new StringBuilder();
+							sb.append("<saved>$");
 							for(String s : saved)
 								sb.append(s + "$");
 							String message = sb.toString();

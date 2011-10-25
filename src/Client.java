@@ -6,7 +6,7 @@ import java.text.*;
 public class Client extends Thread {
 	
 	// Variables
-	private static int listenPort;
+	private static int clientPort;
 	private static String serverIP = null;
 	private static int serverPort;
 	protected static Table table = new Table();
@@ -19,7 +19,7 @@ public class Client extends Thread {
 		super(s);
 	}
 	
-	public static void startClient(String name, String sIP, String sPort, String clientPort) throws IOException {
+	public static void startClient(String name, String sIP, String sPort, String cPort) throws IOException {
 		serverIP = sIP;
 		serverPort = Integer.parseInt(sPort);
 		clientName = name;
@@ -28,7 +28,7 @@ public class Client extends Thread {
 		InetAddress address = InetAddress.getByName(serverIP);
 		InetAddress clientIP = InetAddress.getLocalHost();		// Use for passing clientIP
 		
-		listenPort = Integer.parseInt(clientPort);
+		clientPort = Integer.parseInt(cPort);
 		
 		/* Build message for registration - this always happens first */
 		StringBuilder sb = new StringBuilder();
@@ -37,12 +37,14 @@ public class Client extends Thread {
 		sb.append(" ");
 		sb.append(clientIP.getHostAddress());
 		sb.append(" ");
-		sb.append(listenPort);
+		sb.append(clientPort);
 		String clientInfo = sb.toString();
 
 		byte[] buffer = clientInfo.getBytes();
 		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, serverPort);
 		socket.send(packet);
+		
+		System.out.print(">>> [Welcome, You are registered.]\n>>> ");
 		
 		/* Start two threads for send and recieve */
 		Thread t1 = new Thread(new Client(), "ThreadOut");
@@ -57,21 +59,37 @@ public class Client extends Thread {
 	public void run() {
 		/* Receiving Thread */
 		if(Thread.currentThread().getName().equals("ThreadIn")) {
-			System.out.println("ThreadIn");
+//			System.out.println("ThreadIn");
 			
 			try {
-				DatagramSocket socket = new DatagramSocket(listenPort);
+				DatagramSocket socket = new DatagramSocket(clientPort);
 				
 				while(true) {
-					System.out.print(">>> ");
 					byte[] buffer = new byte[256];
 					
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 					socket.receive(packet); // This thread is waiting to receive
 					
-					/* Once received */
+					/* These are either streaming or saved messages */
 					String rec = new String(packet.getData(), 0, packet.getLength());
-					System.out.println(rec);
+					String[] message = parseInput(rec, "$");
+					
+					if(message[0].equals("<saved>")) {
+						System.out.println(">>> [You have messages]");
+						for(int i=1; i<message.length; i++)
+							System.out.println(">>> " + message[i]);
+					}
+					else {
+						for(int i=0; i<message.length; i++)
+							System.out.print(message[i]);
+						System.out.println();
+					}
+					
+//					System.out.println(rec);
+					System.out.print(">>> ");
+					
+					/* Send ACK */
+					
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -81,7 +99,7 @@ public class Client extends Thread {
 		/* Sending Thread */
 		else if(Thread.currentThread().getName().equals("ThreadOut")) {
 			
-			System.out.println("ThreadOut");
+//			System.out.println("ThreadOut");
 			
 			Scanner scanner = new Scanner(System.in);
 			while(true) {
@@ -218,25 +236,25 @@ public class Client extends Thread {
 					}
 				}
 				else {
-					System.out.println("Error: invalid request");
+					System.out.printf("[Error: invalid request]\n>>> ");
 				}
 			}
 		}
 		
 		/* Listening for broadcasts */
 		else if(Thread.currentThread().getName().equals("Broadcast")) {
-			System.out.println("listening on bcast");
+//			System.out.println("listening on bcast");
 			
 			try {
-				DatagramSocket socket = new DatagramSocket(listenPort+1);
+				DatagramSocket socket = new DatagramSocket(clientPort+1);
 				
 				while(true) {
-					System.out.print(">>> ");
+//					System.out.print(">>> ");
 					byte[] buffer = new byte[256];
 					
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 					socket.receive(packet); // This thread is waiting to receive
-					System.out.println("Rec packate");
+					
 					/* Replace table */
 					table.clear();
 					String rec = new String(packet.getData(), 0, packet.getLength());
@@ -245,9 +263,8 @@ public class Client extends Thread {
 						String[] fields = parseInput(c, "|");
 						table.addClient(new ClientObject(fields[0], fields[1], fields[2], Boolean.parseBoolean(fields[3])));
 					}
-					table.printTable();
-					System.out.println(">>> [Client table updated]");
-					
+//					table.printTable();
+					System.out.print("[Client table updated]\n>>> ");
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -256,7 +273,7 @@ public class Client extends Thread {
 	}
 	
 	private static String[] parseInput(String s, String delim) {
-		System.out.println("parseInput:" + s);
+//		System.out.println("parseInput:" + s);
 		ArrayList<String> al = new ArrayList<String>();
 		
 		StringTokenizer st = new StringTokenizer(s, delim);
