@@ -6,11 +6,18 @@ import java.text.*;
 public class Client extends Thread {
 	
 	// Variables
-	private static int clientPort;
 	private static String serverIP = null;
 	private static int serverPort;
-	protected static Table table = new Table();
 	private static String clientName = null;
+	private static int clientPort;
+	protected static Table table = new Table();
+	
+	private static InetAddress serverAddress;
+	private static InetAddress clientAddress;
+	private static String clientInfo = null;
+	
+	private static Timer timer;
+	private static boolean ACK = false;
 	
 	public Client() throws IOException {
 	}
@@ -23,32 +30,35 @@ public class Client extends Thread {
 		serverIP = sIP;
 		serverPort = Integer.parseInt(sPort);
 		clientName = name;
-		
-		DatagramSocket socket = new DatagramSocket();
-		InetAddress address = InetAddress.getByName(serverIP);
-		InetAddress clientIP = InetAddress.getLocalHost();		// Use for passing clientIP
-		
 		clientPort = Integer.parseInt(cPort);
+		
+		serverAddress = InetAddress.getByName(serverIP);
+		clientAddress = InetAddress.getLocalHost();
+		clientInfo = name + "|" + clientAddress.getHostAddress() + "|" + cPort;
+//		InetAddress address = InetAddress.getByName(serverIP);
+//		InetAddress clientIP = InetAddress.getLocalHost();		// Use for passing clientIP
 		
 		/* Build message for registration - this always happens first */
 		StringBuilder sb = new StringBuilder();
-		sb.append("r ");	// This tells the server that its a registration request
-		sb.append(name);
-		sb.append(" ");
-		sb.append(clientIP.getHostAddress());
-		sb.append(" ");
+		sb.append("r$");	// This tells the server that its a registration request
+		sb.append(name + "|");
+		sb.append(clientAddress.getHostAddress() + "|");
 		sb.append(clientPort);
+		sb.append("$null|null|0$noMessage");	// This is done to normalize headers
 		String clientInfo = sb.toString();
 
 		byte[] buffer = clientInfo.getBytes();
-		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, serverPort);
+		DatagramPacket packet = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
+		
+		DatagramSocket socket = new DatagramSocket();
 		socket.send(packet);
+		socket.close();
 		
 		System.out.print(">>> [Welcome, You are registered.]\n>>> ");
 		
 		/* Start two threads for send and recieve */
-		Thread t1 = new Thread(new Client(), "ThreadOut");
-		Thread t2 = new Thread(new Client(), "ThreadIn");
+		Thread t1 = new Thread(new Client(), "STDIN");
+		Thread t2 = new Thread(new Client(), "Listen");
 		Thread t3 = new Thread(new Client(), "Broadcast");
 		
 		t1.start();
@@ -58,7 +68,7 @@ public class Client extends Thread {
 	
 	public void run() {
 		/* Receiving Thread */
-		if(Thread.currentThread().getName().equals("ThreadIn")) {
+		if(Thread.currentThread().getName().equals("Listen")) {
 //			System.out.println("ThreadIn");
 			
 			try {
@@ -70,6 +80,9 @@ public class Client extends Thread {
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 					socket.receive(packet); // This thread is waiting to receive
 					
+					/* Extract data */
+					
+					
 					/* These are either streaming or saved messages */
 					String rec = new String(packet.getData(), 0, packet.getLength());
 					String[] message = parseInput(rec, "$");
@@ -79,17 +92,37 @@ public class Client extends Thread {
 						for(int i=1; i<message.length; i++)
 							System.out.println(">>> " + message[i]);
 					}
+					else if(message[0].equals("ACK")) {
+						ACK = true;
+						System.out.println("ACKMOTHERFUCKER!!!");
+					}
 					else {
+						/* Get fromClient info */
+//						System.out.println("HeaderInfo: " + message[0]);
+						
+						String[] fromClient = parseInput(message[0], "|");
+//						for(String s : fromClient)
+//							System.out.println(s);
+						String fromName = fromClient[0];
+						String fromIP = fromClient[1];
+						int fromPort = Integer.parseInt(fromClient[2]);
+						InetAddress fromAddress = InetAddress.getByName(fromIP);
+						
+						/* Print out message */
 						for(int i=0; i<message.length; i++)
 							System.out.print(message[i]);
 						System.out.println();
+						
+						/* Send ACK */
+						byte[] ack = "ACK".getBytes();
+						DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, fromAddress, fromPort);
+						DatagramSocket ackSocket = new DatagramSocket();
+						ackSocket.send(ackPacket);
+						ackSocket.close();
 					}
 					
 //					System.out.println(rec);
-					System.out.print(">>> ");
-					
-					/* Send ACK */
-					
+					System.out.print(">>> ");					
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -97,7 +130,7 @@ public class Client extends Thread {
 		}
 		
 		/* Sending Thread */
-		else if(Thread.currentThread().getName().equals("ThreadOut")) {
+		else if(Thread.currentThread().getName().equals("STDIN")) {
 			
 //			System.out.println("ThreadOut");
 			
@@ -148,17 +181,20 @@ public class Client extends Thread {
 								String message = sb.toString();
 								byte[] buffer = message.getBytes();
 								
+								DatagramPacket packet = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
 								DatagramSocket socket = new DatagramSocket();
-								address = InetAddress.getByName(serverIP);
-								DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, serverPort);
 								socket.send(packet);
 								socket.close();
 							}
 							else {
-								// Send to client
+								/* Send to client */
+								StringBuilder sb = new StringBuilder();
+								
+								/* Header */
+								sb.append(clientInfo + "$");	// From
+								sb.append(name + "|" + address.getHostAddress() + "|" + port + "$");	// To
 								
 								/* Build message */
-								StringBuilder sb = new StringBuilder();
 								sb.append(clientName + ": ");
 								for(int i=2; i< input.length; i++)
 									sb.append(input[i] + " ");
@@ -169,9 +205,23 @@ public class Client extends Thread {
 								DatagramSocket socket = new DatagramSocket();
 								DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
 								socket.send(packet);
-								socket.close();
 								
-								//TODO still have to account for offline users
+								/* Wait for ACK */
+								ACK = false;
+								long startTime = System.currentTimeMillis();
+								while(System.currentTimeMillis()-startTime < 500 && ACK == false);
+								
+								if(ACK == false) {
+									/* Prepend 's' to packet */
+									message = "s$" + message;
+									buffer = message.getBytes();
+									DatagramPacket serverPacket = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
+									socket.send(serverPacket);
+									socket.close();
+									
+									System.out.printf("[No ACK from %s, message sent to server.]\n>>> ", name);
+								}
+								socket.close();
 							}
 							System.out.print(">>> ");
 						} catch (IOException e) {

@@ -1,3 +1,5 @@
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.io.*;
 import java.net.*;
@@ -26,7 +28,7 @@ public class Server extends Thread {
 		socket = new DatagramSocket(serverPort);
 		bSocket = new DatagramSocket(multiPort);
 		
-		Thread t1 = new Thread(new Server(), "Server");
+		Thread t1 = new Thread(new Server(), "Listen");
 		Thread t2 = new Thread(new Server(), "Broadcast");
 		
 		t1.start();
@@ -35,7 +37,7 @@ public class Server extends Thread {
 	
 	public void run() {
 		/* Server Thread */
-		if(Thread.currentThread().getName().equals("Server")) {
+		if(Thread.currentThread().getName().equals("Listen")) {
 			while(true) {
 				try {
 					byte[] buffer = new byte[256];
@@ -43,15 +45,29 @@ public class Server extends Thread {
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 					socket.receive(packet);
 					
-					String[] incoming = parsePacket(new String(packet.getData()), " ");
+					/* Extract data */
+					String[] incoming = parsePacket(new String(packet.getData()), "$");
+					String[] fromClient = parsePacket(incoming[1], "|");
+					String[] toClient = parsePacket(incoming[2], "|");
+					
+					String category = incoming[0];
+					String fromName = fromClient[0];
+					String fromIP = fromClient[1];
+					String fromPort = fromClient[2];
+					String toName = toClient[0];
+					String toIP = toClient[1];
+					int toPort = Integer.parseInt(toClient[2]);
+					String message = incoming[3];
+					
+//					String[] incoming = parsePacket(new String(packet.getData()), "$");
 					
 					// Determine what type of request
-					if(incoming[0].equals("r")) {
-						table.addClient(new ClientObject(incoming[1], incoming[2], incoming[3], true)); // Register new client
+					if(category.equals("r")) {
+						table.addClient(new ClientObject(fromName, fromIP, fromPort, true)); // Register new client
 						broadcastReady = true;
 //						System.out.println("bcast is TRUE!");
 					}
-					else if(incoming[0].equals("dereg")) {
+					else if(category.equals("dereg")) {
 //						System.out.println("dereg in the house");
 						ArrayList<ClientObject> clients = table.getClients();
 						for(int i=0; i<clients.size(); i++) {
@@ -65,7 +81,7 @@ public class Server extends Thread {
 						table.replaceClients(clients);
 						broadcastReady = true;
 					}
-					else if(incoming[0].equals("rereg")) {
+					else if(category.equals("rereg")) {
 						System.out.println("rereg in the house");
 						ArrayList<ClientObject> clients = table.getClients();
 						ArrayList<String> saved = new ArrayList<String>();
@@ -97,7 +113,7 @@ public class Server extends Thread {
 							sb.append("<saved>$");
 							for(String s : saved)
 								sb.append(s + "$");
-							String message = sb.toString();
+//							String message = sb.toString();
 							byte[] buf = message.getBytes();
 							
 							try {
@@ -118,26 +134,38 @@ public class Server extends Thread {
 						table.replaceClients(clients);
 						broadcastReady = true;
 					}
-					else if(incoming[0].equals("o")) {
+					else if(category.equals("o")) {
 						// Offline message
 					}
-					else if(incoming[0].equals("s")) {
+					else if(category.equals("s")) {
 						System.out.println("SAVE ME!");
 						
-						/* Build message */
-						StringBuilder sb = new StringBuilder();
-						for(int i=6; i<incoming.length; i++)
-							sb.append(incoming[i] + " ");
-						String m = sb.toString();
+//						/* Extract data */
+//						String[] fromClient = parsePacket(incoming[1], "|");
+//						String fromName = fromClient[0];
+//						
+//						String[] toClient = parsePacket(incoming[2], "|");
+//						String toName = toClient[0];
+//						String toIP = toClient[1];
+//						int toPort = Integer.parseInt(toClient[2]);
+//						
+//						String message = incoming[3];
 						
-						System.out.printf("incoming0:<%s>\n", incoming[0]);
-						System.out.printf("incoming1:<%s>\n", incoming[1]);
-						System.out.printf("incoming2:<%s>\n", incoming[2]);
-						System.out.printf("incoming3:<%s>\n", incoming[3]);
-						System.out.printf("incoming4:<%s>\n", incoming[4]);
-						System.out.printf("incoming5:<%s>\n", incoming[5]);
 						
-						messages.add(new SavedMessage(incoming[1], incoming[2], Integer.parseInt(incoming[3]), m, incoming[4], incoming[5]));
+//						/* Build message */
+//						StringBuilder sb = new StringBuilder();
+//						for(int i=6; i<incoming.length; i++)
+//							sb.append(incoming[i] + " ");
+//						String m = sb.toString();
+						
+//						System.out.printf("incoming0:<%s>\n", incoming[0]);
+//						System.out.printf("incoming1:<%s>\n", incoming[1]);
+//						System.out.printf("incoming2:<%s>\n", incoming[2]);
+//						System.out.printf("incoming3:<%s>\n", incoming[3]);
+//						System.out.printf("incoming4:<%s>\n", incoming[4]);
+//						System.out.printf("incoming5:<%s>\n", incoming[5]);
+						
+						messages.add(new SavedMessage(toName, toIP, toPort, message, fromName, getDateTime()));
 						
 						// Testing
 						for(SavedMessage s : messages)
@@ -213,4 +241,10 @@ public class Server extends Thread {
 		
 		return al.toArray(new String[al.size()]);
 	}
+	
+	private String getDateTime() {
+        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
+        Date date = new Date();
+        return dateFormat.format(date);
+    }
 }
