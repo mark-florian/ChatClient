@@ -50,16 +50,14 @@ public class Server extends Thread {
 					String[] fromClient = parsePacket(incoming[1], "|");
 					String[] toClient = parsePacket(incoming[2], "|");
 					
-					String category = incoming[0];
-					String fromName = fromClient[0];
-					String fromIP = fromClient[1];
-					String fromPort = fromClient[2];
-					String toName = toClient[0];
-					String toIP = toClient[1];
+					String category = incoming[0].trim();
+					String fromName = fromClient[0].trim();
+					String fromIP = fromClient[1].trim();
+					int fromPort = Integer.parseInt(fromClient[2]);
+					String toName = toClient[0].trim();
+					String toIP = toClient[1].trim();
 					int toPort = Integer.parseInt(toClient[2]);
-					String message = incoming[3];
-					
-//					String[] incoming = parsePacket(new String(packet.getData()), "$");
+					String message = incoming[3].trim();
 					
 					// Determine what type of request
 					if(category.equals("r")) {
@@ -68,11 +66,11 @@ public class Server extends Thread {
 //						System.out.println("bcast is TRUE!");
 					}
 					else if(category.equals("dereg")) {
-//						System.out.println("dereg in the house");
+						System.out.println("dereg in the house");
 						ArrayList<ClientObject> clients = table.getClients();
 						for(int i=0; i<clients.size(); i++) {
 //							System.out.printf("incoming:<%s>list:<%s>", incoming[1], clients.get(i).getName());
-							if(clients.get(i).getName().equals(incoming[1])) {
+							if(clients.get(i).getName().equals(fromName)) {
 //								System.out.println("condition satisfied");
 								clients.get(i).setActive(false);
 								break;
@@ -90,7 +88,7 @@ public class Server extends Thread {
 						int port = 0;
 						
 						for(int i=0; i<clients.size(); i++) {
-							if(clients.get(i).getName().equals(incoming[1])) {
+							if(clients.get(i).getName().equals(fromName)) {
 								clients.get(i).setActive(true);
 								ip = clients.get(i).getIP();
 								port = clients.get(i).getPort();
@@ -99,7 +97,7 @@ public class Server extends Thread {
 								//TODO add timestamp
 								
 								for(int j=0; j< messages.size(); j++) {
-									if(messages.get(j).getName().equals(incoming[1]))
+									if(messages.get(j).getName().equals(fromName))
 										saved.add(messages.get(j).getFrom() + ": <" + messages.get(j).getTime() + "> " + messages.get(j).getMessage());
 									else
 										newList.add(messages.get(j));
@@ -110,16 +108,17 @@ public class Server extends Thread {
 						}
 						if(saved.size() > 0) {
 							StringBuilder sb = new StringBuilder();
-							sb.append("<saved>$");
+							sb.append("saved$");
+							sb.append("null|null|0$null|null|0$");
 							for(String s : saved)
-								sb.append(s + "$");
-//							String message = sb.toString();
-							byte[] buf = message.getBytes();
+								sb.append(s + "\n>>> ");
+							String savedMessages = sb.toString();
+							byte[] buf = savedMessages.getBytes();
 							
 							try {
-								DatagramSocket socket = new DatagramSocket();
 								InetAddress address = InetAddress.getByName(ip);
 								DatagramPacket savedPacket = new DatagramPacket(buf, buf.length, address, port);
+								DatagramSocket socket = new DatagramSocket();
 								socket.send(savedPacket);
 								socket.close();
 							} catch (IOException e) {

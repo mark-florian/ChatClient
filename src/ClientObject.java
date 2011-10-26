@@ -13,10 +13,10 @@ public class ClientObject {
 		active = false;
 	}
 	
-	public ClientObject(String n, String i, String p, boolean a) {
-		name = n.trim();
-		ipAddress = i.trim();
-		portNumber = Integer.parseInt(p.trim());
+	public ClientObject(String n, String i, int p, boolean a) {
+		name = n;
+		ipAddress = i;
+		portNumber = p;
 		active = a;
 	}
 	
