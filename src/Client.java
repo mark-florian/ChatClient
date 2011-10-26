@@ -1,7 +1,6 @@
 import java.util.*;
 import java.io.*;
 import java.net.*;
-import java.text.*;
 
 public class Client extends Thread {
 	
@@ -68,8 +67,6 @@ public class Client extends Thread {
 	public void run() {
 		/* Receiving Thread */
 		if(Thread.currentThread().getName().equals("Listen")) {
-//			System.out.println("ThreadIn");
-			
 			try {
 				DatagramSocket socket = new DatagramSocket(clientPort);
 				
@@ -77,51 +74,29 @@ public class Client extends Thread {
 					byte[] buffer = new byte[256];
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 					socket.receive(packet); // This thread is waiting to receive
-					System.out.print(">>> ");
 					
 					/* Extract data */
 					String[] incoming = parsePacket(new String(packet.getData()), "$");
 					String[] fromClient = parsePacket(incoming[1], "|");
-					String[] toClient = parsePacket(incoming[2], "|");
+//					String[] toClient = parsePacket(incoming[2], "|");
 					
 					String category = incoming[0].trim();
-					String fromName = fromClient[0].trim();
+//					String fromName = fromClient[0].trim();
 					String fromIP = fromClient[1].trim();
 					int fromPort = Integer.parseInt(fromClient[2]);
-					String toName = toClient[0].trim();
-					String toIP = toClient[1].trim();
-					int toPort = Integer.parseInt(toClient[2]);
+//					String toName = toClient[0].trim();
+//					String toIP = toClient[1].trim();
+//					int toPort = Integer.parseInt(toClient[2]);
 					String message = incoming[3].trim();
 					
-//					/* These are either streaming or saved messages */
-//					String rec = new String(packet.getData(), 0, packet.getLength());
-//					String[] message = parseInput(rec, "$");
-					
 					if(category.equals("saved")) {
-						System.out.print("[You have messages]\n>>> ");
+						System.out.print(">>> [You have messages]\n>>> ");
 						System.out.print(message);
-//						for(int i=1; i<message.length; i++)
-//							System.out.println(">>> " + message[i]);
 					}
-					else if(category.equals("ACK")) {
+					else if(category.equals("ACK"))
 						ACK = true;
-//						System.out.println("ACKMOTHERFUCKER!!!");
-					}
-					else if(category.equals("clientMessage")){
-						/* Get fromClient info */
-//						System.out.println("HeaderInfo: " + message[0]);
-						
-//						String[] fromClient = parseInput(message[0], "|");
-////						for(String s : fromClient)
-////							System.out.println(s);
-//						String fromName = fromClient[0];
-//						String fromIP = fromClient[1];
-//						int fromPort = Integer.parseInt(fromClient[2]);
-//						InetAddress fromAddress = InetAddress.getByName(fromIP);
-						
-						/* Print out message */
-//						for(int i=0; i<message.length; i++)
-//							System.out.print(message[i]);
+					else if(category.equals("clientMessage")) {
+
 						System.out.print(message + "\n>>> ");
 						
 						/* Send ACK */
@@ -131,7 +106,16 @@ public class Client extends Thread {
 						ackSocket.send(ackPacket);
 						ackSocket.close();
 					}
-//					System.out.print(">>> ");
+					else if(category.equals("broadcast")) {
+						/* Replace table */
+						table.clear();
+						String[] clientStrings = parsePacket(message, "%");
+						for(String c : clientStrings) {
+							String[] fields = parsePacket(c, "|");
+							table.addClient(new ClientObject(fields[0], fields[1], Integer.parseInt(fields[2]), Boolean.parseBoolean(fields[3])));
+						}
+						System.out.print("[Client table updated]\n>>> ");
+					}
 				}
 			} catch (IOException e) {
 				e.printStackTrace();
@@ -140,13 +124,9 @@ public class Client extends Thread {
 		
 		/* Sending Thread */
 		else if(Thread.currentThread().getName().equals("STDIN")) {
-			
-//			System.out.println("ThreadOut");
-			
 			Scanner scanner = new Scanner(System.in);
 			while(true) {
 				String in = scanner.nextLine();
-				System.out.print(">>> ");
 				
 				/* Build data used throughout */
 				String[] input = parsePacket(in, " ");
@@ -173,7 +153,7 @@ public class Client extends Thread {
 									break;
 								}
 							if(address == null)
-								System.out.printf("User %s is not a registered user\n", input[1]);
+								System.out.printf("User %s is not a registered user\n>>> ", input[1]);
 							else if(inactiveClient) {
 								
 								/* Build message for server */
@@ -207,7 +187,7 @@ public class Client extends Thread {
 								if(ACK == false)
 									System.out.print("[Server is offline, message was lost.]\n>>> ");
 								else
-									System.out.print("[Messages received by the server and saved]\n>>> ");
+									System.out.print(">>> [Messages received by the server and saved]\n>>> ");
 							}
 							else {
 								/* Send to client */
@@ -247,10 +227,9 @@ public class Client extends Thread {
 									System.out.printf("[Message received by the server and saved]\n>>> ");
 								}
 								else
-									System.out.printf("[Message received by %s.]\n>>> ", name);
+									System.out.printf(">>> [Message received by %s.]\n>>> ", name);
 								socket.close();
 							}
-//							System.out.print(">>> ");
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
@@ -298,7 +277,9 @@ public class Client extends Thread {
 				else if(input[0].equals("dereg")) {
 					// Send server dereg request
 					if(input.length != 2)
-						System.out.println("Usage: dereg <nick-name>"); //TODO make sure user is current uesr
+						System.out.println("Usage: dereg <nick-name>");
+					else if(!input[1].equals(clientName))
+						System.out.print(">>> [You may only deregister yourself.]\n>>> ");
 					else {
 						try {
 							String message = "dereg$" + input[1] + "|null|0$null|null|0$noMessage";
@@ -324,7 +305,7 @@ public class Client extends Thread {
 							
 							if(ACK == false)
 								System.out.print("[Exiting]\n>>> ");
-							System.out.print("[You are offline. Bye.]\n>>> ");
+							System.out.print(">>> [You are offline. Bye.]\n>>> ");
 							
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -337,39 +318,36 @@ public class Client extends Thread {
 			}
 		}
 		
-		/* Listening for broadcasts */
-		else if(Thread.currentThread().getName().equals("Broadcast")) {
-//			System.out.println("listening on bcast");
-			
-			try {
-				DatagramSocket socket = new DatagramSocket(clientPort+1);
-				
-				while(true) {
-//					System.out.print(">>> ");
-					byte[] buffer = new byte[256];
-					
-					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-					socket.receive(packet); // This thread is waiting to receive
-					
-					/* Replace table */
-					table.clear();
-					String rec = new String(packet.getData(), 0, packet.getLength());
-					String[] clientStrings = parsePacket(rec, "$");
-					for(String c : clientStrings) {
-						String[] fields = parsePacket(c, "|");
-						table.addClient(new ClientObject(fields[0], fields[1], Integer.parseInt(fields[2]), Boolean.parseBoolean(fields[3])));
-					}
-//					table.printTable();
-					System.out.print("[Client table updated]\n>>> ");
-				}
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
-		}
+//		/* Listening for broadcasts */
+//		else if(Thread.currentThread().getName().equals("Broadcast")) {
+//			try {
+//				DatagramSocket socket = new DatagramSocket(clientPort+1);
+//				
+//				while(true) {
+//					byte[] buffer = new byte[256];
+//					
+//					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+//					socket.receive(packet); // This thread is waiting to receive
+//					
+//					/* Replace table */
+//					table.clear();
+//					String rec = new String(packet.getData(), 0, packet.getLength());
+//					String[] clientStrings = parsePacket(rec, "$");
+//					for(String c : clientStrings) {
+//						String[] fields = parsePacket(c, "|");
+//						table.addClient(new ClientObject(fields[0], fields[1], Integer.parseInt(fields[2]), Boolean.parseBoolean(fields[3])));
+//					}
+//					System.out.print("[Client table updated]\n>>> ");
+////					System.out.println("Current table:");
+////					table.printTable();
+//				}
+//			} catch (IOException e) {
+//				e.printStackTrace();
+//			}
+//		}
 	}
 	
 	private static String[] parsePacket(String s, String delim) {
-//		System.out.println("parseInput:" + s);
 		ArrayList<String> al = new ArrayList<String>();
 		
 		StringTokenizer st = new StringTokenizer(s, delim);
@@ -378,11 +356,4 @@ public class Client extends Thread {
 		
 		return al.toArray(new String[al.size()]);
 	}
-	
-	private String getDateTime() {
-        DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
-        Date date = new Date();
-        return dateFormat.format(date);
-    }
-
 }

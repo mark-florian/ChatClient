@@ -6,7 +6,6 @@ import java.net.*;
 
 public class Server extends Thread {
 	
-	//Variables
 	protected static DatagramSocket socket = null;
 	protected static DatagramSocket bSocket = null;
 	protected static int serverPort;
@@ -36,7 +35,7 @@ public class Server extends Thread {
 	}
 	
 	public void run() {
-		/* Server Thread */
+		/* Listen Thread */
 		if(Thread.currentThread().getName().equals("Listen")) {
 			while(true) {
 				try {
@@ -63,7 +62,6 @@ public class Server extends Thread {
 					if(category.equals("r")) {
 						table.addClient(new ClientObject(fromName, fromIP, fromPort, true)); // Register new client
 						broadcastReady = true;
-//						System.out.println("bcast is TRUE!");
 					}
 					else if(category.equals("dereg")) {
 						ArrayList<ClientObject> clients = table.getClients();
@@ -71,7 +69,6 @@ public class Server extends Thread {
 						int fPort = 0;
 						for(int i=0; i<clients.size(); i++) {
 							if(clients.get(i).getName().equals(fromName)) {
-								System.out.println("condition satisfied");
 								clients.get(i).setActive(false);
 								fIP = clients.get(i).getIP();
 								fPort = clients.get(i).getPort();
@@ -89,7 +86,6 @@ public class Server extends Thread {
 						ackSocket.close();
 					}
 					else if(category.equals("rereg")) {
-						System.out.println("rereg in the house");
 						ArrayList<ClientObject> clients = table.getClients();
 						ArrayList<String> saved = new ArrayList<String>();
 						ArrayList<SavedMessage> newList = new ArrayList<SavedMessage>();
@@ -102,16 +98,12 @@ public class Server extends Thread {
 								ip = clients.get(i).getIP();
 								port = clients.get(i).getPort();
 								
-								//TODO here we must check for saved messages in global list
-								//TODO add timestamp
-								
 								for(int j=0; j< messages.size(); j++) {
 									if(messages.get(j).getName().equals(fromName))
 										saved.add(messages.get(j).getFrom() + ": <" + messages.get(j).getTime() + "> " + messages.get(j).getMessage());
 									else
 										newList.add(messages.get(j));
 								}
-								
 								break;
 							}
 						}
@@ -133,7 +125,6 @@ public class Server extends Thread {
 							} catch (IOException e) {
 								e.printStackTrace();
 							}
-							//TODO build new list and send it from here
 							System.out.println(message);
 						}
 						
@@ -143,8 +134,6 @@ public class Server extends Thread {
 						broadcastReady = true;
 					}
 					else if(category.equals("s")) {
-//						System.out.println("SAVE ME!");
-						
 						messages.add(new SavedMessage(toName, toIP, toPort, message, fromName, getDateTime()));
 						
 						/* Send ACK */
@@ -153,17 +142,10 @@ public class Server extends Thread {
 						DatagramSocket ackSocket = new DatagramSocket();
 						ackSocket.send(ackPacket);
 						ackSocket.close();
-						
-//						// Testing
-//						for(SavedMessage s : messages)
-//							System.out.printf("%s\t%s\t%d\t%s\t%s\t%s\n", s.getName(), s.getIP(), s.getPort(), s.getMessage(), s.getFrom(), s.getTime());
-//						// Save message request
 					}
 					else {
 						//TODO This should never happen!
 					}
-						
-//					String message = new String(packet.getData());
 					System.out.println("Current Table:");
 					table.printTable();
 					
@@ -175,10 +157,7 @@ public class Server extends Thread {
 		
 		/* Broadcast Thread */
 		else if(Thread.currentThread().getName().equals("Broadcast")) {
-			
 			try {
-//				InetAddress address = InetAddress.getByName("localhost"); //TODO dynamic
-				
 				while(true) {
 					if(broadcastReady) {
 						/* Send a packet to each client */
@@ -186,6 +165,8 @@ public class Server extends Thread {
 						
 						/* Build byte message */
 						StringBuilder sb = new StringBuilder();
+						sb.append("broadcast$");
+						sb.append("null|null|0$null|null|0$");
 						for(ClientObject c : clients) {
 							sb.append(c.getName());
 							sb.append("|");
@@ -194,7 +175,7 @@ public class Server extends Thread {
 							sb.append(c.getPort());
 							sb.append("|");
 							sb.append(c.getActive());
-							sb.append("$");
+							sb.append("%");
 						}
 						String message = sb.toString();
 						byte[] buffer = message.getBytes();
@@ -203,14 +184,14 @@ public class Server extends Thread {
 						for(ClientObject c : clients) {														
 							InetAddress address = InetAddress.getByName(c.getIP());
 							
-							DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, c.getPort()+1);
+							DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, c.getPort());
 							bSocket.send(packet);
 						}
 						
 						broadcastReady = false;
 					}
 					try {
-						sleep(50);	// Check to broadcast every 50ms
+						sleep(100);	// Check to broadcast every 50ms
 					} catch (InterruptedException e) {}
 				}
 			} catch (IOException e) {
