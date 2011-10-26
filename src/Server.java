@@ -66,18 +66,27 @@ public class Server extends Thread {
 //						System.out.println("bcast is TRUE!");
 					}
 					else if(category.equals("dereg")) {
-						System.out.println("dereg in the house");
 						ArrayList<ClientObject> clients = table.getClients();
+						String fIP = null;
+						int fPort = 0;
 						for(int i=0; i<clients.size(); i++) {
-//							System.out.printf("incoming:<%s>list:<%s>", incoming[1], clients.get(i).getName());
 							if(clients.get(i).getName().equals(fromName)) {
-//								System.out.println("condition satisfied");
+								System.out.println("condition satisfied");
 								clients.get(i).setActive(false);
+								fIP = clients.get(i).getIP();
+								fPort = clients.get(i).getPort();
 								break;
 							}
 						}
 						table.replaceClients(clients);
 						broadcastReady = true;
+						
+						/* Send ACK */
+						byte[] ack = "ACK$null|null|0$null|null|0$noMessage".getBytes();
+						DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, InetAddress.getByName(fIP), fPort);
+						DatagramSocket ackSocket = new DatagramSocket();
+						ackSocket.send(ackPacket);
+						ackSocket.close();
 					}
 					else if(category.equals("rereg")) {
 						System.out.println("rereg in the house");
@@ -133,43 +142,22 @@ public class Server extends Thread {
 						table.replaceClients(clients);
 						broadcastReady = true;
 					}
-					else if(category.equals("o")) {
-						// Offline message
-					}
 					else if(category.equals("s")) {
-						System.out.println("SAVE ME!");
-						
-//						/* Extract data */
-//						String[] fromClient = parsePacket(incoming[1], "|");
-//						String fromName = fromClient[0];
-//						
-//						String[] toClient = parsePacket(incoming[2], "|");
-//						String toName = toClient[0];
-//						String toIP = toClient[1];
-//						int toPort = Integer.parseInt(toClient[2]);
-//						
-//						String message = incoming[3];
-						
-						
-//						/* Build message */
-//						StringBuilder sb = new StringBuilder();
-//						for(int i=6; i<incoming.length; i++)
-//							sb.append(incoming[i] + " ");
-//						String m = sb.toString();
-						
-//						System.out.printf("incoming0:<%s>\n", incoming[0]);
-//						System.out.printf("incoming1:<%s>\n", incoming[1]);
-//						System.out.printf("incoming2:<%s>\n", incoming[2]);
-//						System.out.printf("incoming3:<%s>\n", incoming[3]);
-//						System.out.printf("incoming4:<%s>\n", incoming[4]);
-//						System.out.printf("incoming5:<%s>\n", incoming[5]);
+//						System.out.println("SAVE ME!");
 						
 						messages.add(new SavedMessage(toName, toIP, toPort, message, fromName, getDateTime()));
 						
-						// Testing
-						for(SavedMessage s : messages)
-							System.out.printf("%s\t%s\t%d\t%s\t%s\t%s\n", s.getName(), s.getIP(), s.getPort(), s.getMessage(), s.getFrom(), s.getTime());
-						// Save message request
+						/* Send ACK */
+						byte[] ack = "ACK$null|null|0$null|null|0$noMessage".getBytes();
+						DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, InetAddress.getByName(fromIP), fromPort);
+						DatagramSocket ackSocket = new DatagramSocket();
+						ackSocket.send(ackPacket);
+						ackSocket.close();
+						
+//						// Testing
+//						for(SavedMessage s : messages)
+//							System.out.printf("%s\t%s\t%d\t%s\t%s\t%s\n", s.getName(), s.getIP(), s.getPort(), s.getMessage(), s.getFrom(), s.getTime());
+//						// Save message request
 					}
 					else {
 						//TODO This should never happen!

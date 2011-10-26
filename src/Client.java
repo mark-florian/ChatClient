@@ -16,7 +16,7 @@ public class Client extends Thread {
 	private static InetAddress clientAddress;
 	private static String clientInfo = null;
 	
-	private static boolean ACK = false;
+	public static boolean ACK = false;
 	
 	public Client() throws IOException {
 	}
@@ -75,9 +75,9 @@ public class Client extends Thread {
 				
 				while(true) {
 					byte[] buffer = new byte[256];
-					
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
 					socket.receive(packet); // This thread is waiting to receive
+					System.out.print(">>> ");
 					
 					/* Extract data */
 					String[] incoming = parsePacket(new String(packet.getData()), "$");
@@ -98,7 +98,7 @@ public class Client extends Thread {
 //					String[] message = parseInput(rec, "$");
 					
 					if(category.equals("saved")) {
-						System.out.print(">>> [You have messages]\n>>> ");
+						System.out.print("[You have messages]\n>>> ");
 						System.out.print(message);
 //						for(int i=1; i<message.length; i++)
 //							System.out.println(">>> " + message[i]);
@@ -117,7 +117,7 @@ public class Client extends Thread {
 //						String fromName = fromClient[0];
 //						String fromIP = fromClient[1];
 //						int fromPort = Integer.parseInt(fromClient[2]);
-						InetAddress fromAddress = InetAddress.getByName(fromIP);
+//						InetAddress fromAddress = InetAddress.getByName(fromIP);
 						
 						/* Print out message */
 //						for(int i=0; i<message.length; i++)
@@ -126,7 +126,7 @@ public class Client extends Thread {
 						
 						/* Send ACK */
 						byte[] ack = "ACK$null|null|0$null|null|0$noMessage".getBytes();
-						DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, fromAddress, fromPort);
+						DatagramPacket ackPacket = new DatagramPacket(ack, ack.length, InetAddress.getByName(fromIP), fromPort);
 						DatagramSocket ackSocket = new DatagramSocket();
 						ackSocket.send(ackPacket);
 						ackSocket.close();
@@ -146,6 +146,7 @@ public class Client extends Thread {
 			Scanner scanner = new Scanner(System.in);
 			while(true) {
 				String in = scanner.nextLine();
+				System.out.print(">>> ");
 				
 				/* Build data used throughout */
 				String[] input = parsePacket(in, " ");
@@ -189,6 +190,24 @@ public class Client extends Thread {
 								DatagramSocket socket = new DatagramSocket();
 								socket.send(packet);
 								socket.close();
+								
+								/* Wait for ACK */
+								ACK = false;
+								long startTime = System.currentTimeMillis();
+								int failures = 0;
+								while(failures < 5) {
+									while(System.currentTimeMillis()-startTime < 500 && ACK == false);
+									if(ACK == true)
+										break;
+									System.out.print("[Server not responding]\n>>> ");
+									startTime = System.currentTimeMillis();
+									failures++;
+								}
+								
+								if(ACK == false)
+									System.out.print("[Server is offline, message was lost.]\n>>> ");
+								else
+									System.out.print("[Messages received by the server and saved]\n>>> ");
 							}
 							else {
 								/* Send to client */
@@ -218,17 +237,20 @@ public class Client extends Thread {
 								
 								if(ACK == false) {
 									/* Prepend 's' to packet */
-									message = "s$" + message;
+									message = "s$" + clientInfo + "$null|null|0$" + message;
 									buffer = message.getBytes();
 									DatagramPacket serverPacket = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
 									socket.send(serverPacket);
 									socket.close();
 									
 									System.out.printf("[No ACK from %s, message sent to server.]\n>>> ", name);
+									System.out.printf("[Message received by the server and saved]\n>>> ");
 								}
+								else
+									System.out.printf("[Message received by %s.]\n>>> ", name);
 								socket.close();
 							}
-							System.out.print(">>> ");
+//							System.out.print(">>> ");
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
@@ -279,13 +301,31 @@ public class Client extends Thread {
 						System.out.println("Usage: dereg <nick-name>"); //TODO make sure user is current uesr
 					else {
 						try {
-							String message = "dereg$" + input[1] +"|null|0$null|null|0$noMessage";
+							String message = "dereg$" + input[1] + "|null|0$null|null|0$noMessage";
 							byte[] buffer = message.getBytes();
 							
 							DatagramPacket packet = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
 							DatagramSocket socket = new DatagramSocket();
 							socket.send(packet);
 							socket.close();
+							
+							/* Wait for ACK */
+							ACK = false;
+							long startTime = System.currentTimeMillis();
+							int failures = 0;
+							while(failures < 5) {
+								while(System.currentTimeMillis()-startTime < 500 && ACK == false);
+								if(ACK == true)
+									break;
+								System.out.print("[Server not responding]\n>>> ");
+								startTime = System.currentTimeMillis();
+								failures++;
+							}
+							
+							if(ACK == false)
+								System.out.print("[Exiting]\n>>> ");
+							System.out.print("[You are offline. Bye.]\n>>> ");
+							
 						} catch (IOException e) {
 							e.printStackTrace();
 						}
