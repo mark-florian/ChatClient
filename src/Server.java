@@ -6,10 +6,7 @@ import java.net.*;
 
 public class Server extends Thread {
 	
-	protected static DatagramSocket socket = null;
-	protected static DatagramSocket bSocket = null;
 	protected static int serverPort;
-	protected static int multiPort;
 	protected static Table table = new Table();
 	private static boolean broadcastReady = false;
 	private static ArrayList<SavedMessage> messages = new ArrayList<SavedMessage>();
@@ -23,9 +20,6 @@ public class Server extends Thread {
 
 	public static void startServer(String port) throws IOException {
 		serverPort = Integer.parseInt(port);
-		multiPort = serverPort + 1;
-		socket = new DatagramSocket(serverPort);
-		bSocket = new DatagramSocket(multiPort);
 		
 		Thread t1 = new Thread(new Server(), "Listen");
 		Thread t2 = new Thread(new Server(), "Broadcast");
@@ -42,7 +36,9 @@ public class Server extends Thread {
 					byte[] buffer = new byte[256];
 					
 					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+					DatagramSocket socket = new DatagramSocket(serverPort);
 					socket.receive(packet);
+					socket.close();
 					
 					/* Extract data */
 					String[] incoming = parsePacket(new String(packet.getData()), "$");
@@ -119,9 +115,9 @@ public class Server extends Thread {
 							try {
 								InetAddress address = InetAddress.getByName(ip);
 								DatagramPacket savedPacket = new DatagramPacket(buf, buf.length, address, port);
-								DatagramSocket socket = new DatagramSocket();
-								socket.send(savedPacket);
-								socket.close();
+								DatagramSocket savedSocket = new DatagramSocket();
+								savedSocket.send(savedPacket);
+								savedSocket.close();
 							} catch (IOException e) {
 								e.printStackTrace();
 							}
@@ -185,9 +181,10 @@ public class Server extends Thread {
 							InetAddress address = InetAddress.getByName(c.getIP());
 							
 							DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, c.getPort());
-							bSocket.send(packet);
+							DatagramSocket socket = new DatagramSocket();
+							socket.send(packet);
+							socket.close();
 						}
-						
 						broadcastReady = false;
 					}
 					try {

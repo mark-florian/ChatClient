@@ -4,12 +4,12 @@ import java.net.*;
 
 public class Client extends Thread {
 	
-	// Variables
 	private static String serverIP = null;
 	private static int serverPort;
 	private static String clientName = null;
 	private static int clientPort;
 	protected static Table table = new Table();
+	private static boolean active;
 	
 	private static InetAddress serverAddress;
 	private static InetAddress clientAddress;
@@ -29,12 +29,11 @@ public class Client extends Thread {
 		serverPort = Integer.parseInt(sPort);
 		clientName = name;
 		clientPort = Integer.parseInt(cPort);
+		active = true;
 		
 		serverAddress = InetAddress.getByName(serverIP);
 		clientAddress = InetAddress.getLocalHost();
 		clientInfo = name + "|" + clientAddress.getHostAddress() + "|" + cPort;
-//		InetAddress address = InetAddress.getByName(serverIP);
-//		InetAddress clientIP = InetAddress.getLocalHost();		// Use for passing clientIP
 		
 		/* Build message for registration - this always happens first */
 		StringBuilder sb = new StringBuilder();
@@ -107,14 +106,22 @@ public class Client extends Thread {
 						ackSocket.close();
 					}
 					else if(category.equals("broadcast")) {
-						/* Replace table */
-						table.clear();
-						String[] clientStrings = parsePacket(message, "%");
-						for(String c : clientStrings) {
-							String[] fields = parsePacket(c, "|");
-							table.addClient(new ClientObject(fields[0], fields[1], Integer.parseInt(fields[2]), Boolean.parseBoolean(fields[3])));
+						if(active) {
+							/* Replace table */
+							table.clear();
+							String[] clientStrings = parsePacket(message, "%");
+							for(String c : clientStrings) {
+								String[] fields = parsePacket(c, "|");
+								table.addClient(new ClientObject(fields[0], fields[1], Integer.parseInt(fields[2]), Boolean.parseBoolean(fields[3])));
+								if(fields[0].equals(clientName)) {
+									if(Boolean.parseBoolean(fields[3]))
+										active = true;
+									else
+										active = false;
+								}
+							}
+							System.out.print("[Client table updated]\n>>> ");
 						}
-						System.out.print("[Client table updated]\n>>> ");
 					}
 				}
 			} catch (IOException e) {
@@ -134,7 +141,7 @@ public class Client extends Thread {
 				
 				if(category.equals("send")) {
 					if(input.length < 3)
-						System.out.println("Usage: send <nick-name> <message>\n>>> ");
+						System.out.print(">>> Usage: send <nick-name> <message>\n>>> ");
 					else {
 						boolean inactiveClient = false;
 						try {
@@ -153,7 +160,7 @@ public class Client extends Thread {
 									break;
 								}
 							if(address == null)
-								System.out.printf("User %s is not a registered user\n>>> ", input[1]);
+								System.out.printf(">>> User %s is not a registered user\n>>> ", input[1]);
 							else if(inactiveClient) {
 								
 								/* Build message for server */
@@ -190,45 +197,51 @@ public class Client extends Thread {
 									System.out.print(">>> [Messages received by the server and saved]\n>>> ");
 							}
 							else {
-								/* Send to client */
-								StringBuilder sb = new StringBuilder();
-								
-								/* Header */
-								sb.append("clientMessage$");
-								sb.append(clientInfo + "$");	// From
-								sb.append(name + "|" + address.getHostAddress() + "|" + port + "$");	// To
-								
-								/* Build message */
-								sb.append(clientName + ": ");
-								for(int i=2; i< input.length; i++)
-									sb.append(input[i] + " ");
-								String message = sb.toString();
-								byte[] buffer = message.getBytes();
-								
-								/* Send packet to user */
-								DatagramSocket socket = new DatagramSocket();
-								DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
-								socket.send(packet);
-								
-								/* Wait for ACK */
-								ACK = false;
-								long startTime = System.currentTimeMillis();
-								while(System.currentTimeMillis()-startTime < 500 && ACK == false);
-								
-								if(ACK == false) {
-									/* Prepend 's' to packet */
-									message = "s$" + clientInfo + "$null|null|0$" + message;
-									buffer = message.getBytes();
-									DatagramPacket serverPacket = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
-									socket.send(serverPacket);
-									socket.close();
+								if(clientName.equals(name))
+									System.out.print(">>> [You are trying to send a message to yourself.]\n>>> ");
+								if(!active)
+									System.out.print(">>> [You must be online to send messages.]\n>>> ");
+								else {
+									/* Send to client */
+									StringBuilder sb = new StringBuilder();
 									
-									System.out.printf("[No ACK from %s, message sent to server.]\n>>> ", name);
-									System.out.printf("[Message received by the server and saved]\n>>> ");
+									/* Header */
+									sb.append("clientMessage$");
+									sb.append(clientInfo + "$");	// From
+									sb.append(name + "|" + address.getHostAddress() + "|" + port + "$");	// To
+									
+									/* Build message */
+									sb.append(clientName + ": ");
+									for(int i=2; i< input.length; i++)
+										sb.append(input[i] + " ");
+									String message = sb.toString();
+									byte[] buffer = message.getBytes();
+									
+									/* Send packet to user */
+									DatagramSocket socket = new DatagramSocket();
+									DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);
+									socket.send(packet);
+									
+									/* Wait for ACK */
+									ACK = false;
+									long startTime = System.currentTimeMillis();
+									while(System.currentTimeMillis()-startTime < 500 && ACK == false);
+									
+									if(ACK == false) {
+										/* Prepend 's' to packet */
+										message = "s$" + clientInfo + "$null|null|0$" + message;
+										buffer = message.getBytes();
+										DatagramPacket serverPacket = new DatagramPacket(buffer, buffer.length, serverAddress, serverPort);
+										socket.send(serverPacket);
+										socket.close();
+										
+										System.out.printf("[No ACK from %s, message sent to server.]\n>>> ", name);
+										System.out.printf("[Message received by the server and saved]\n>>> ");
+									}
+									else
+										System.out.printf(">>> [Message received by %s.]\n>>> ", name);
+									socket.close();
 								}
-								else
-									System.out.printf(">>> [Message received by %s.]\n>>> ", name);
-								socket.close();
 							}
 						} catch (IOException e) {
 							e.printStackTrace();
@@ -246,14 +259,16 @@ public class Client extends Thread {
 						for(ClientObject c : clients)
 							if(c.getName().equals(input[1])) {
 								if(c.getActive()) {
-									System.out.println("User is already registered and active");
+									System.out.print(">>> [User is already registered and active.]\n>>> ");
+									activateClient = true;
 									break;
 								}
 								name = c.getName();
 								activateClient = true;
+								active = true;
 							}
 						if(!activateClient) {
-							System.out.printf("User %s does not exist\n", input[1]);
+							System.out.printf(">>> [User %s does not exist]\n>>> ", input[1]);
 						}
 						else {
 							// Send request from here
@@ -313,38 +328,10 @@ public class Client extends Thread {
 					}
 				}
 				else {
-					System.out.printf("[Error: invalid request]\n>>> ");
+					System.out.printf(">>> [Error: invalid request]\n>>> ");
 				}
 			}
 		}
-		
-//		/* Listening for broadcasts */
-//		else if(Thread.currentThread().getName().equals("Broadcast")) {
-//			try {
-//				DatagramSocket socket = new DatagramSocket(clientPort+1);
-//				
-//				while(true) {
-//					byte[] buffer = new byte[256];
-//					
-//					DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-//					socket.receive(packet); // This thread is waiting to receive
-//					
-//					/* Replace table */
-//					table.clear();
-//					String rec = new String(packet.getData(), 0, packet.getLength());
-//					String[] clientStrings = parsePacket(rec, "$");
-//					for(String c : clientStrings) {
-//						String[] fields = parsePacket(c, "|");
-//						table.addClient(new ClientObject(fields[0], fields[1], Integer.parseInt(fields[2]), Boolean.parseBoolean(fields[3])));
-//					}
-//					System.out.print("[Client table updated]\n>>> ");
-////					System.out.println("Current table:");
-////					table.printTable();
-//				}
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-//		}
 	}
 	
 	private static String[] parsePacket(String s, String delim) {
